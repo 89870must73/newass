@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# initializing IP
-export DEBIAN_FRONTEND=noninteractive
-OS=`uname -m`;
-MYIP=$(wget -qO- ipv4.icanhazip.com);
-MYIP2="s/xxxxxxxxx/$IPADDR/g";
-
 # OpenVPN Ports
 OpenVPN_Port1='1103'
 OpenVPN_Port2='25222'
@@ -771,6 +765,14 @@ unzip menu.zip
 chmod +x /usr/bin/*
 sed -i $MYIP2 /usr/bin/user-add-pptp;
 rm menu.zip
+
+function ip_address(){
+  local IP="$( ip addr | egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | egrep -v "^192\.168|^172\.1[6-9]\.|^172\.2[0-9]\.|^172\.3[0-2]\.|^10\.|^127\.|^255\.|^0\." | head -n 1 )"
+  [ -z "${IP}" ] && IP="$( wget -qO- -t1 -T2 ipv4.icanhazip.com )"
+  [ -z "${IP}" ] && IP="$( wget -qO- -t1 -T2 ipinfo.io/ip )"
+  [ ! -z "${IP}" ] && echo "${IP}" || echo
+} 
+IPADDR="$(ip_address)"
 
 # finishing
 cd
