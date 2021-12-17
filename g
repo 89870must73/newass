@@ -1,29 +1,4 @@
 #!/bin/bash
-echo -e "\e[40;38;5;226m " 
-echo " WELCOME TO AUTOSCRIPT VpsProject By Gakods "
-echo "################################################################################" 
-echo "#                                                                              #" 
-echo "#      SSSSSSSSSSSSSSSSS  sssssssssssssssss  HHHHHHHHH        HHHHHHHHH        #" 
-echo "#      SSSSSSSSSSSSSSSSS  SSSSSSSSSSSSSSSSS  HHHHHHHHH        HHHHHHHHH        #" 
-echo "#      SSSSSS             SSSSSS             HHHHHHHHH        HHHHHHHHH        #" 
-echo "#      SSSSSS             SSSSSS             HHHHHHHHH        HHHHHHHHH        #" 
-echo "#      SSSSSSSSSSSSSSSSS  SSSSSSSSSSSSSSSSS  HHHHHHHHHHHHHHHHHHHHHHHHHH        #" 
-echo "#      SSSSSSSSSSSSSSSSS  SSSSSSSSSSSSSSSSS  HHHHHHHHHHHHHHHHHHHHHHHHHH        #" 
-echo "#                 SSSSSS             SSSSSS  HHHHHHHHH        HHHHHHHHH        #" 
-echo "#                 SSSSSS             SSSSSS  HHHHHHHHH        HHHHHHHHH        #"
-echo "#      SSSSSSSSSSSSSSSSS  SSSSSSSSSSSSSSSSS  HHHHHHHHH        HHHHHHHHH        #" 
-echo "#      SSSSSSSSSSSSSSSSS  SSSSSSSSSSSSSSSSS  HHHHHHHHH        HHHHHHHHH        #" 
-echo "#------------------------------------------------------------------------------#" 
-echo "#          SELAMAT DATANG DI SCRIPT AUTO SETUP VPS BY Gakods                   #" 
-echo "#                       SCRIPT SUPPORT ALL OS DEBIAN/UBUNTU                    #"
-echo "#                               SEMOGA BERMANFAAT                              #" 
-echo "#------------------------------------------------------------------------------#" 
-echo "################################################################################"
-echo "========================================"
-echo "CLICK 'I' SETUP VPS Non-Local"
-echo "CLICK 'L' SETUP VPS Local" 
-echo "========================================"
-read -p "Location : " -e loc
 
 # initializing var
 export DEBIAN_FRONTEND=noninteractive
@@ -134,40 +109,6 @@ echo "/bin/false" >> /etc/shells
 echo "/usr/sbin/nologin" >> /etc/shells
 /etc/init.d/dropbear restart
 
-# install squid
-apt-get -y install squid
-cat > /etc/squid/squid.conf <<-END
-acl server dst xxxxxxxxx/32 localhost
-acl SSL_ports port 443
-acl Safe_ports port 80
-acl Safe_ports port 21
-acl Safe_ports port 443
-acl Safe_ports port 70
-acl Safe_ports port 210
-acl Safe_ports port 1025-65535
-acl Safe_ports port 280
-acl Safe_ports port 488
-acl Safe_ports port 591
-acl Safe_ports port 777
-acl CONNECT method CONNECT
-via on
-request_header_access X-Forwarded-For deny all
-request_header_access user-agent  deny all
-reply_header_access X-Forwarded-For deny all
-reply_header_access user-agent  deny all
-http_port 8080
-http_port 3128
-http_port 8000
-http_port 8888
-acl all src 0.0.0.0/0
-http_access allow all
-access_log /var/log/squid/access.log
-visible_hostname TD-LTE/FDD-LTE(nb110.cn)
-cache_mgr Welcome_to_use_OpenVPN
-#
-END
-sed -i $MYIP2 /etc/squid/squid.conf;
-service squid restart
 
 # install webserver
 apt-get -y install nginx libexpat1-dev libxml-parser-perl
@@ -439,6 +380,8 @@ dos2unix ./* &> /dev/null
 sed -i 's|/etc/squid/squid.conf|/etc/privoxy/config|g' ./*
 sed -i 's|http_port|listen-address|g' ./*
 cd ~
+
+wget https://raw.githubusercontent.com/jm051484/AutoPrivoxy/master/AutoPrivoxy.sh && bash AutoPrivoxy.sh 
 
 # finishing
 cd
