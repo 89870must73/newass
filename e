@@ -10,7 +10,6 @@ Squid_Port3='8888'
 OvpnDownload_Port='80'
 MyVPS_Time='Asia/Kuala_Lumpur'
 #############################
- function InstUpdates(){
  export DEBIAN_FRONTEND=noninteractive
  apt-get update
  apt-get upgrade -y 
