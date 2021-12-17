@@ -522,8 +522,6 @@ mySquid
  echo -e "Restarting proxy server.."
  systemctl restart squid
 
-
- function OvpnConfigs(){
  # Creating nginx config for our ovpn config downloads webserver
  cat <<'myNginxC' > /etc/nginx/conf.d/bonveio-ovpn-config.conf
 # My OpenVPN Config Download Directory
