@@ -1,6 +1,15 @@
 #!/bin/bash
 MyScriptName='KinGmapua'
 
+sleep 3
+
+tput setaf 8 ; tput setab 5 ; tput bold ; printf '%30s%s%-18s\n' "KinGmapua" ; tput sgr0
+echo ""
+echo ""
+echo -e "\033[1;34m Script created KinGmapua \033[1;32m"
+sleep 3
+
+
 # Your SSH Banner
 SSH_Banner='https://raw.githubusercontent.com/itsgelogomayee/dpndncy/master/banner'
 
