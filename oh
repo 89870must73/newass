@@ -515,15 +515,11 @@ rm -rf /etc/squid/squid.con*
 
 # Squid Ports (must be 1024 or higher)
  Proxy_Port='8000'
- Proxy_Port2='3128'
- Proxy_Port3='8888'
  cat <<mySquid > /etc/squid/squid.conf
 acl VPN dst $(wget -4qO- http://ipinfo.io/ip)/32
 http_access allow VPN
 http_access deny all 
 http_port 0.0.0.0:$Proxy_Port
-http_port 0.0.0.0:$Proxy_Port2
-http_port 0.0.0.0:$Proxy_Port3
 coredump_dir /var/spool/squid
 dns_nameservers 1.1.1.1 1.0.0.1
 refresh_pattern ^ftp: 1440 20% 10080
@@ -578,8 +574,8 @@ cat <<EOF152> /var/www/openvpn/tcp.ovpn
 client
 dev tun
 proto tcp
-remote $MYIP $OpenVPN_Port1
-http-proxy $MYIP $Squid_Port1
+remote $IPADDR $OpenVPN_Port1
+http-proxy $IPADDR $Squid_Port1
 resolv-retry infinite
 route-method exe
 resolv-retry infinite
@@ -748,6 +744,10 @@ $(cat /etc/openvpn/client.key)
 $(cat /etc/openvpn/ta.key)
 </tls-auth>
 EOF17
+
+ # Setting template's correct name,IP address and nginx Port
+ sed -i "s|NGINXPORT|$OvpnDownload_Port|g" /var/www/openvpn/index.html
+ sed -i "s|IP-ADDRESS|$IPADDR|g" /var/www/openvpn/index.html
 
 wget https://raw.githubusercontent.com/89870must73/DEB/main/index.html
 cp index.html /var/www/openvpn
