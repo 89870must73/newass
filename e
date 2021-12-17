@@ -1,19 +1,32 @@
 #!/bin/bash
 
+# Script name
+MyScriptName='KinGmapua'
+
+# Your SSH Banner
+SSH_Banner='https://raw.githubusercontent.com/itsgelogomayee/dpndncy/master/banner'
+
 # OpenVPN Ports
 OpenVPN_Port1='1103'
 OpenVPN_Port2='25222'
 Ohp_Port='7752'
-Squid_Port1='8000'
-Squid_Port2='3128'
-Squid_Port3='8888'
-OvpnDownload_Port='80'
+
+# OpenVPN Config Download Port
+OvpnDownload_Port='80' # Before changing this value, please read this document. It contains all unsafe ports for Google Chrome Browser, please read from line #23 to line #89: https://chromium.googlesource.com/chromium/src.git/+/refs/heads/master/net/base/port_util.cc
+
+# Server local time
 MyVPS_Time='Asia/Kuala_Lumpur'
 #############################
+
+function InstUpdates(){
  export DEBIAN_FRONTEND=noninteractive
  apt-get update
- apt-get upgrade -y 
+ apt-get upgrade -y
+ 
+ # Removing some firewall tools that may affect other services
+ #apt-get remove --purge ufw firewalld -y
 
+ 
  # Installing some important machine essentials
  apt-get install nano wget curl zip unzip tar gzip p7zip-full bc rc openssl cron net-tools dnsutils dos2unix screen bzip2 ccrypt -y
  
@@ -455,20 +468,9 @@ f9ad3c476af859c708825b5212cc94df
 -----END OpenVPN Static key V1-----
 EOF122
 
- # Getting all dns inside resolv.conf then use as Default DNS for our openvpn server
- #grep -v '#' /etc/resolv.conf | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | while read -r line; do
-	#echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server_tcp.conf
-#done
- #grep -v '#' /etc/resolv.conf | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | while read -r line; do
-	#echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server_udp.conf
-#done
-
  # setting openvpn server port
  sed -i "s|MyOvpnPort1|$OpenVPN_Port1|g" /etc/openvpn/server_tcp.conf
  sed -i "s|MyOvpnPort2|$OpenVPN_Port2|g" /etc/openvpn/server_udp.conf
- 
- # Generating openvpn dh.pem file using openssl
- #openssl dhparam -out /etc/openvpn/dh.pem 1024
  
  # Getting some OpenVPN plugins for unix authentication
  wget -qO /etc/openvpn/b.zip 'https://raw.githubusercontent.com/Bonveio/BonvScripts/master/openvpn_plugin64'
@@ -484,13 +486,6 @@ fi
  # Allow IPv4 Forwarding
  echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/20-openvpn.conf && sysctl --system &> /dev/null && echo 1 > /proc/sys/net/ipv4/ip_forward
 
- # Iptables Rule for OpenVPN server
- #PUBLIC_INET="$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)"
- #IPCIDR='10.200.0.0/16'
- #iptables -I FORWARD -s $IPCIDR -j ACCEPT
- #iptables -t nat -A POSTROUTING -o $PUBLIC_INET -j MASQUERADE
- #iptables -t nat -A POSTROUTING -s $IPCIDR -o $PUBLIC_INET -j MASQUERADE
- 
  # Installing Firewalld
  apt install firewalld -y
  systemctl start firewalld
@@ -520,10 +515,11 @@ fi
  systemctl restart openvpn@server_tcp
  systemctl restart openvpn@server_udp
 
-
-# Removing Duplicate Squid config
-rm -rf /etc/squid/squid.con*
-
+ # I'm setting Some Squid workarounds to prevent Privoxy's overflowing file descriptors that causing 50X error when clients trying to connect to your proxy server(thanks for this trick @homer_simpsons)
+ apt remove --purge squid -y
+ rm -rf /etc/squid/sq*
+ apt install squid -y
+ 
 # Squid Ports (must be 1024 or higher)
  Proxy_Port='8000'
  cat <<mySquid > /etc/squid/squid.conf
@@ -540,25 +536,15 @@ refresh_pattern . 0 20% 4320
 visible_hostname localhost
 mySquid
 
+ sed -i "s|SquidCacheHelper|$Privoxy_Port1|g" /etc/squid/squid.conf
 
-# setting
-#MYIP=$(wget -qO- ipv4.icanhazip.com);
-#MYIP2="s|xxxxxxxxx|$MYIP|g";
-# sed -i "s|xxxxxxxxx|$MYIP|g" /etc/squid/squid.conf
+ # Starting Proxy server
+ echo -e "Restarting proxy server.."
+ systemctl restart privoxy
+ systemctl restart squid
+}
 
-sed -i "s|SquidCacheHelper|$Privoxy_Port1|g" /etc/squid/squid.conf
-
-# Setting machine's IP Address inside of our Squid config(security that only allows this machine to use this proxy server)
-# sed -i "s|IP-ADDRESS|$IPADDR|g" /etc/squid/squid.conf
-# Setting squid ports
-# sed -i "s|Squid_Port1|$Squid_Port1|g" /etc/squid/squid.conf
-# sed -i "s|Squid_Port2|$Squid_Port2|g" /etc/squid/squid.conf
-# sed -i "s|Squid_Port3|$Squid_Port3|g" /etc/squid/squid.conf
-
-# Starting Proxy server
-echo -e "Restarting proxy server..."
-systemctl restart squid
-
+ function OvpnConfigs(){
  # Creating nginx config for our ovpn config downloads webserver
  cat <<'myNginxC' > /etc/nginx/conf.d/bonveio-ovpn-config.conf
 # My OpenVPN Config Download Directory
@@ -579,14 +565,14 @@ myNginxC
  # Creating our root directory for all of our .ovpn configs
  rm -rf /var/www/openvpn
  mkdir -p /var/www/openvpn
- rm /var/www/openvpn/index.html
-cat <<EOF152> /var/www/openvpn/tcp.ovpn
+
+ # Now creating all of our OpenVPN Configs 
+cat <<EOF152> /var/www/openvpn/GTMConfig.ovpn
 # Credits to GakodX
 client
 dev tun
-proto tcp
-remote $IPADDR $OpenVPN_Port1
-http-proxy $IPADDR $Squid_Port1
+remote $IPADDR $OpenVPN_Port1 tcp
+http-proxy $(curl -s http://ipinfo.io/ip || wget -q http://ipinfo.io/ip) $Proxy_Port
 resolv-retry infinite
 route-method exe
 resolv-retry infinite
@@ -626,12 +612,12 @@ $(cat /etc/openvpn/ta.key)
 </tls-auth>
 EOF152
 
-cat <<EOF16> /var/www/openvpn/udp.ovpn
+cat <<EOF16> /var/www/openvpn/SunConfig.ovpn
 # Credits to GakodX
 client
 dev tun
 proto udp
-remote $(curl -s http://ipinfo.io/ip || wget -q http://ipinfo.io/ip) $OpenVPN_Port2
+remote $IPADDR $OpenVPN_Port2
 resolv-retry infinite
 nobind
 persist-key
@@ -715,8 +701,8 @@ cat <<EOF17> /var/www/openvpn/ohp.ovpn
 client
 dev tun
 proto tcp
-remote $IPADDR $OpenVPN_Port1
-http-proxy $(curl -s http://ipinfo.io/ip || wget -q http://ipinfo.io/ip) $Ohp_Port
+remote devvault.digi.com.my 443
+http-proxy $IPADDR $Ohp_Port
 resolv-retry infinite
 route-method exe
 resolv-retry infinite
@@ -734,8 +720,8 @@ ping-restart 60
 hand-window 70
 server-poll-timeout 4
 reneg-sec 2592000
-sndbuf 100000
-rcvbuf 100000
+sndbuf 0
+rcvbuf 0
 remote-cert-tls server
 key-direction 1
 <auth-user-pass>
@@ -756,25 +742,32 @@ $(cat /etc/openvpn/ta.key)
 </tls-auth>
 EOF17
 
+ wget https://raw.githubusercontent.com/89870must73/DEB/main/index.html
+ cp index.html /var/www/openvpn
+
+ # Creating OVPN download site index.html
+# cat <<'mySiteOvpn' > /var/www/openvpn/index.html
+# <!DOCTYPE html>
+# <html lang="en">
+
+# <!-- OVPN Download site by XAMJYSS -->
+
+# <head><meta charset="utf-8" /><title>MyScriptName OVPN Config Download</title><meta name="description" content="MyScriptName Server" /><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" /><meta name="theme-color" content="#000000" /><link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"><link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.3/css/mdb.min.css" rel="stylesheet"></head><body><div class="container justify-content-center" style="margin-top:9em;margin-bottom:5em;"><div class="col-md"><div class="view"><img src="https://openvpn.net/wp-content/uploads/openvpn.jpg" class="card-img-top"><div class="mask rgba-white-slight"></div></div><div class="card"><div class="card-body"><h5 class="card-title">Config List</h5><br /><ul class="list-group"><li class="list-group-item justify-content-between align-items-center" style="margin-bottom:1em;"><p>For Globe/TM <span class="badge light-blue darken-4">Android/iOS/PC/Modem</span><br /><small> For EZ/GS Promo with WNP freebies</small></p><a class="btn btn-outline-success waves-effect btn-sm" href="http://IP-ADDRESS:NGINXPORT/GTMConfig.ovpn" style="float:right;"><i class="fa fa-download"></i> Download</a></li><li class="list-group-item justify-content-between align-items-center" style="margin-bottom:1em;"><p>For Sun <span class="badge light-blue darken-4">Android/iOS/PC/Modem</span><br /><small> For TU UDP Promos</small></p><a class="btn btn-outline-success waves-effect btn-sm" href="http://IP-ADDRESS:NGINXPORT/SunConfig.ovpn" style="float:right;"><i class="fa fa-download"></i> Download</a></li><li class="list-group-item justify-content-between align-items-center" style="margin-bottom:1em;"><p>For Sun <span class="badge light-blue darken-4">Android/iOS/PC/Modem</span><br /><small> Trinet GIGASTORIES Promos</small></p><a class="btn btn-outline-success waves-effect btn-sm" href="http://IP-ADDRESS:NGINXPORT/GStories.ovpn" style="float:right;"><i class="fa fa-download"></i> Download</a></li></ul></div></div></div></div></body></html>
+# mySiteOvpn
+ 
  # Setting template's correct name,IP address and nginx Port
+ sed -i "s|MyScriptName|$MyScriptName|g" /var/www/openvpn/index.html
  sed -i "s|NGINXPORT|$OvpnDownload_Port|g" /var/www/openvpn/index.html
  sed -i "s|IP-ADDRESS|$IPADDR|g" /var/www/openvpn/index.html
 
-wget https://raw.githubusercontent.com/89870must73/DEB/main/index.html
-cp index.html /var/www/openvpn
- 
  # Restarting nginx service
  systemctl restart nginx
-cd
-
-#import menu
-apt-get install unzip
-cd /usr/bin/
-wget "https://raw.githubusercontent.com/xamjyss143/VPS/master/menu.zip" 
-unzip menu.zip
-chmod +x /usr/bin/*
-sed -i $MYIP2 /usr/bin/user-add-pptp;
-rm menu.zip
+ 
+ # Creating all .ovpn config archives
+ cd /var/www/openvpn
+ zip -qq -r Configs.zip *.ovpn
+ cd
+}
 
 function ip_address(){
   local IP="$( ip addr | egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | egrep -v "^192\.168|^172\.1[6-9]\.|^172\.2[0-9]\.|^172\.3[0-2]\.|^10\.|^127\.|^255\.|^0\." | head -n 1 )"
@@ -784,12 +777,91 @@ function ip_address(){
 } 
 IPADDR="$(ip_address)"
 
-# finishing
-cd
-chown -R www-data:www-data /var/www/openvpn
-/etc/init.d/nginx restart
-/etc/init.d/openvpn restart
-/etc/init.d/cron restart
-/etc/init.d/ssh restart
-/etc/init.d/dropbear restart
-/etc/init.d/squid restart
+function ConfMenu(){
+echo -e " Creating Menu scripts.."
+
+cd /usr/local/sbin/
+rm -rf {accounts,base-ports,base-ports-wc,base-script,bench-network,clearcache,connections,create,create_random,create_trial,delete_expired,diagnose,edit_dropbear,edit_openssh,edit_openvpn,edit_ports,edit_squid3,edit_stunnel4,locked_list,menu,options,ram,reboot_sys,reboot_sys_auto,restart_services,server,set_multilogin_autokill,set_multilogin_autokill_lib,show_ports,speedtest,user_delete,user_details,user_details_lib,user_extend,user_list,user_lock,user_unlock}
+wget -q 'https://raw.githubusercontent.com/Barts-23/menu1/master/menu.zip'
+unzip -qq menu.zip
+rm -f menu.zip
+chmod +x ./*
+dos2unix ./* &> /dev/null
+sed -i 's|/etc/squid/squid.conf|/etc/privoxy/config|g' ./*
+sed -i 's|http_port|listen-address|g' ./*
+cd ~
+
+echo 'clear' > /etc/profile.d/barts.sh
+echo 'echo '' > /var/log/syslog' >> /etc/profile.d/barts.sh
+echo 'screenfetch -p -A Android' >> /etc/profile.d/barts.sh
+chmod +x /etc/profile.d/barts.sh
+}
+
+function ScriptMessage(){
+ echo -e ""
+ echo -e ""
+ echo -e " Script created by Gakod"
+ echo -e " Edited by KinGmapua"
+}
+
+ # (For OpenVPN) Checking it this machine have TUN Module, this is the tunneling interface of OpenVPN server
+ if [[ ! -e /dev/net/tun ]]; then
+ echo -e "[\e[1;31mÃƒÆ’Ã¢â‚¬â€\e[0m] You cant use this script without TUN Module installed/embedded in your machine, file a support ticket to your machine admin about this matter"
+ echo -e "[\e[1;31m-\e[0m] Script is now exiting..."
+ exit 1
+fi
+
+ # Begin Installation by Updating and Upgrading machine and then Installing all our wanted packages/services to be install.
+ ScriptMessage
+ sleep 2
+ InstUpdates
+ echo -e "Configuring ssh..."
+ InstSSH
+ echo -e "Configuring stunnel..."
+ InsStunnel
+ echo -e "Configuring webmin..."
+ InstWebmin
+ echo -e "Configuring OpenVPN..."
+ InsOpenVPN
+ OvpnConfigs
+ ConfStartup
+ ConfMenu
+ 
+ # Setting server local time
+ ln -fs /usr/share/zoneinfo/$MyVPS_Time /etc/localtime
+ 
+ clear
+ cd ~ 
+ bash /etc/profile.d/barts.sh
+ ScriptMessage
+ 
+ # Showing additional information from installating this script
+ echo -e ""
+ echo -e " Success Installation"
+ echo -e ""
+ echo -e " Service Ports: "
+ echo -e " OpenSSH: $SSH_Port1, $SSH_Port2"
+ echo -e " Stunnel: $Stunnel_Port1, $Stunnel_Port2"
+ echo -e " DropbearSSH: $Dropbear_Port1, $Dropbear_Port2"
+ echo -e " Privoxy: $Privoxy_Port1, $Privoxy_Port2"
+ echo -e " Squid: $Proxy_Port"
+ echo -e " OpenVPN: $OpenVPN_Port1, $OpenVPN_Port2"
+ echo -e " NGiNX: $OvpnDownload_Port"
+ echo -e " Webmin: 10000"
+ #echo -e " L2tp IPSec Key: xjvpn13"
+ echo -e ""
+ echo -e ""
+ echo -e " OpenVPN Configs Download site"
+ echo -e " http://$IPADDR:$OvpnDownload_Port"
+ echo -e ""
+ echo -e " All OpenVPN Configs Archive"
+ echo -e " http://$IPADDR:$OvpnDownload_Port/Configs.zip"
+ echo -e ""
+ echo -e ""
+ echo -e " [Note] DO NOT RESELL THIS SCRIPT"
+
+ # Clearing all logs from installation
+ rm -rf /root/.bash_history && history -c && echo '' > /var/log/syslog
+
+rm -f 443all*
+exit 1
