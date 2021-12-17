@@ -1,4 +1,11 @@
 #!/bin/bash
+
+# initializing IP
+export DEBIAN_FRONTEND=noninteractive
+OS=`uname -m`;
+MYIP=$(wget -qO- ipv4.icanhazip.com);
+MYIP2="s/xxxxxxxxx/$IPADDR/g";
+
 # OpenVPN Ports
 OpenVPN_Port1='1103'
 OpenVPN_Port2='25222'
@@ -746,8 +753,8 @@ $(cat /etc/openvpn/ta.key)
 EOF17
 
  # Setting template's correct name,IP address and nginx Port
- sed -i "s|NGINXPORT|$OvpnDownload_Port|g" /var/www/openvpn/index.html
- sed -i "s|IP-ADDRESS|$IPADDR|g" /var/www/openvpn/index.html
+# sed -i "s|NGINXPORT|$OvpnDownload_Port|g" /var/www/openvpn/index.html
+# sed -i "s|IP-ADDRESS|$IPADDR|g" /var/www/openvpn/index.html
 
 wget https://raw.githubusercontent.com/89870must73/DEB/main/index.html
 cp index.html /var/www/openvpn
